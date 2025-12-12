@@ -757,3 +757,39 @@ body.stats-collapsed {
     }
 }
 
+.app-footer {
+    text-align: center;
+    padding: 20px;
+    margin-top: 40px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.app-footer small {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+}
+
+.github-link {
+    display: inline-flex;
+    align-items: center;
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: none;
+    margin-left: 8px;
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.github-link:hover {
+    color: #fff;
+    transform: scale(1.1);
+}
+
+.github-link svg {
+    vertical-align: middle;
+}
+
+.text-danger {
+    color: #ff6b6b;
+}
+

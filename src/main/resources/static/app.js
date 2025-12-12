@@ -1282,17 +1282,17 @@ function showMassActions() {
         const actions = document.createElement('div');
         actions.className = 'mass-action-buttons';
         
-        const applyNewBtn = document.createElement('button');
-        applyNewBtn.className = 'btn tiny';
-        applyNewBtn.textContent = `Принять NEW (${group.count})`;
-        applyNewBtn.onclick = () => applyMassChange(group, 'new');
-        actions.appendChild(applyNewBtn);
-        
         const applyOldBtn = document.createElement('button');
         applyOldBtn.className = 'btn tiny';
         applyOldBtn.textContent = `Принять OLD (${group.count})`;
         applyOldBtn.onclick = () => applyMassChange(group, 'old');
         actions.appendChild(applyOldBtn);
+        
+        const applyNewBtn = document.createElement('button');
+        applyNewBtn.className = 'btn tiny';
+        applyNewBtn.textContent = `Принять NEW (${group.count})`;
+        applyNewBtn.onclick = () => applyMassChange(group, 'new');
+        actions.appendChild(applyNewBtn);
         
         item.appendChild(preview);
         item.appendChild(actions);
