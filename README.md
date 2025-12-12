@@ -26,9 +26,7 @@ DiffChange/
 │   └── test/
 └── diff/                                             # Директория с тестовыми файлами-примерами для сравнения
     ├── old/                                          # Тестовые файлы-примеры старых версий (OLD)
-    │   ├── ItemName_ClassicAden-eu.txt              # Тестовый ItemName файл
-    │   ├── NpcString-ru.dat.txt                     # Тестовый DAT файл
-    │   └── NpcString_Classic-ru.dat.txt            # Тестовый DAT файл
+    │   └── ItemName_ClassicAden-eu.txt              # Тестовый ItemName файл
     ├── new/                                          # Тестовые файлы-примеры новых версий (NEW)
     │   └── ItemName_ClassicAden-eu.txt              # Тестовый ItemName файл
     └── output/                                       # Результаты сравнения (JSON)
