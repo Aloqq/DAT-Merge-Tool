@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Lineage 2 DAT Merge Tool</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="app-header">
+    <div>
+        <h1>Lineage 2 DAT Merge Tool</h1>
+        <p>Сравнение, объединение и экспорт расшифрованных dat-файлов.</p>
+    </div>
+    <div class="actions">
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="Поиск по ID, полям..." class="search-input">
+            <button id="searchBtn" class="search-btn" title="Найти">🔍</button>
+            <button id="clearSearch" class="search-clear" style="display: none;" title="Очистить поиск">✕</button>
+        </div>
+        <label style="display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 0.9rem;">
+            <input type="checkbox" id="showOnlyChanges" checked style="cursor: pointer;">
+            Показать только изменения
+        </label>
+        <label style="display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 0.9rem;">
+            <input type="checkbox" id="showOnlyChangedFields" style="cursor: pointer;">
+            Показать только измененные поля
+        </label>
+        <button id="massActionsBtn" disabled>Массовые действия</button>
+        <button id="exportBtn" disabled>Экспорт</button>
+    </div>
+</header>
+
+<section class="upload-panel">
+    <div class="upload-controls">
+        <div class="form-control">
+            <label for="oldFile">OLD.txt</label>
+            <input type="file" id="oldFile" accept=".txt">
+        </div>
+        <div class="form-control">
+            <label for="newFile">NEW.txt</label>
+            <input type="file" id="newFile" accept=".txt">
+        </div>
+        <button id="uploadBtn">Загрузить и сравнить</button>
+        <span class="status" id="statusText"></span>
+    </div>
+    <div id="recentFilesPanel" class="recent-files-panel" style="display: none;">
+        <div class="recent-files-header">
+            <span>Последние файлы</span>
+            <button id="toggleRecentFiles" class="btn tiny" title="Свернуть/Развернуть">−</button>
+        </div>
+        <div id="recentFilesList" class="recent-files-list"></div>
+    </div>
+</section>
+
+<div id="statsPanel" class="stats-panel">
+    <div class="stats-header">
+        <h3>Статистика</h3>
+        <button id="toggleStats" class="btn tiny">−</button>
+    </div>
+    <div id="statsContent" class="stats-content"></div>
+</div>
+
+<div id="massActionsPanel" class="mass-actions-panel" style="display: none;">
+    <div class="mass-actions-header">
+        <h3>Похожие изменения</h3>
+        <button id="closeMassActions" class="btn tiny">✕</button>
+    </div>
+    <div id="massActionsList" class="mass-actions-list"></div>
+</div>
+
+<div class="records-wrapper">
+    <main id="recordsContainer">
+        <div class="hint">
+            Загрузите файлы, чтобы увидеть diff.
+        </div>
+    </main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
+

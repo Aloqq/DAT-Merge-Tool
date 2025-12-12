@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Lineage 2 DAT Merge Tool</title>
+    <style>
+        :root {
+            color-scheme: dark;
+        }
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            margin: 0;
+            font-family: "Segoe UI", sans-serif;
+            background: #1f1b1b;
+            color: #ddd;
+        }
+        h1 {
+            font-weight: 500;
+            margin-bottom: 0.2rem;
+        }
+        .app {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .controls label {
+            display: flex;
+            flex-direction: column;
+            font-size: 0.9rem;
+            gap: 4px;
+        }
+        input[type="file"] {
+            color: #ddd;
+            background: transparent;
+        }
+        button {
+            background: #3a2f2f;
+            color: #f0f0f0;
+            border: 1px solid #5a4a4a;
+            padding: 8px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        button:hover:not(:disabled) {
+            background: #4d3d3d;
+        }
+        .status-message {
+            min-height: 1.2rem;
+            font-size: 0.9rem;
+            color: #ffb347;
+        }
+        .table-wrapper {
+            width: 100%;
+            overflow: auto;
+            border: 1px solid #3b3232;
+            border-radius: 6px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            table-layout: fixed;
+        }
+        thead {
+            background: #2a2323;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+        th, td {
+            padding: 8px;
+            border-bottom: 1px solid #3b3232;
+            vertical-align: top;
+        }
+        th {
+            text-align: left;
+            font-weight: 500;
+        }
+        tbody tr:nth-child(odd) {
+            background: #241e1e;
+        }
+        .id-cell {
+            width: 120px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .wide-cell {
+            width: 26%;
+        }
+        .merged-cell {
+            width: 26%;
+        }
+        .actions-cell {
+            width: 160px;
+            text-align: center;
+        }
+        .cell-content {
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-family: "Fira Code", "Consolas", monospace;
+            min-height: 1.2rem;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            margin-bottom: 4px;
+            background: #3a3333;
+        }
+        tr[data-status="changed"] {
+            background: rgba(255, 215, 0, 0.1);
+        }
+        tr[data-status="added"] {
+            background: rgba(0, 128, 0, 0.2);
+        }
+        tr[data-status="removed"] {
+            background: rgba(255, 0, 0, 0.15);
+        }
+        tr[data-status="same"] {
+            background: rgba(255, 255, 255, 0.02);
+        }
+        tr[data-status="deleted"] {
+            opacity: 0.45;
+        }
+        .merged-field {
+            border: 1px solid transparent;
+            padding: 6px;
+            border-radius: 4px;
+            min-height: 2.2rem;
+        }
+        .merged-field.editing {
+            border-color: #8c6d2b;
+            background: rgba(140, 109, 43, 0.15);
+        }
+        .actions-cell button {
+            width: 100%;
+            margin-bottom: 4px;
+            font-size: 0.8rem;
+        }
+        .actions-cell button:last-child {
+            margin-bottom: 0;
+        }
+        @media (max-width: 1024px) {
+            th, td {
+                font-size: 0.85rem;
+            }
+            .id-cell {
+                width: 90px;
+            }
+            .actions-cell {
+                width: 120px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+    <h1>Lineage 2 DAT Merge Tool</h1>
+    <p>Импортируйте OLD/NEW версии, сравните и соберите итоговую MERGED колонку.</p>
+    <div class="controls">
+        <label>OLD.txt
+            <input type="file" id="oldFile" accept=".txt">
+        </label>
+        <label>NEW.txt
+            <input type="file" id="newFile" accept=".txt">
+        </label>
+        <button id="loadBtn">Загрузить</button>
+        <button id="exportBtn" disabled>Экспорт в TXT</button>
+        <span class="status-message" id="statusMsg"></span>
+    </div>
+    <div class="table-wrapper">
+        <table>
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>OLD</th>
+                <th>NEW</th>
+                <th>MERGED</th>
+                <th>Действия</th>
+            </tr>
+            </thead>
+            <tbody id="diffBody">
+            </tbody>
+        </table>
+    </div>
+</div>
+<script>
+    const state = {
+        rows: [],
+        format: null
+    };
+
+    const elements = {
+        oldInput: document.getElementById('oldFile'),
+        newInput: document.getElementById('newFile'),
+        loadBtn: document.getElementById('loadBtn'),
+        exportBtn: document.getElementById('exportBtn'),
+        statusMsg: document.getElementById('statusMsg'),
+        diffBody: document.getElementById('diffBody')
+    };
+
+    elements.loadBtn.addEventListener('click', loadFiles);
+    elements.exportBtn.addEventListener('click', exportMerged);
+    elements.diffBody.addEventListener('click', handleTableClick);
+    elements.diffBody.addEventListener('input', handleMergedInput);
+    elements.diffBody.addEventListener('blur', handleMergedBlur, true);
+
+    function showStatus(message, isError = false) {
+        elements.statusMsg.textContent = message || '';
+        elements.statusMsg.style.color = isError ? '#ff6b6b' : '#ffb347';
+    }
+
+    async function loadFiles() {
+        const oldFile = elements.oldInput.files[0];
+        const newFile = elements.newInput.files[0];
+
+        if (!oldFile || !newFile) {
+            showStatus('Загрузите оба файла (OLD и NEW)', true);
+            return;
+        }
+
+        try {
+            showStatus('Чтение файлов...');
+            const [oldText, newText] = await Promise.all([
+                readFile(oldFile),
+                readFile(newFile)
+            ]);
+
+            const formatOld = detectFormat(oldText);
+            const formatNew = detectFormat(newText);
+
+            if (formatOld !== formatNew) {
+                showStatus('Форматы файлов не совпадают', true);
+                return;
+            }
+
+            state.format = formatOld;
+            const oldData = parseByFormat(oldText, state.format);
+            const newData = parseByFormat(newText, state.format);
+
+            buildRows(oldData, newData);
+            renderTable();
+            elements.exportBtn.disabled = false;
+            showStatus(`Загружено записей: ${state.rows.length}. Формат: ${state.format}`);
+        } catch (err) {
+            console.error(err);
+            showStatus('Ошибка загрузки файлов: ' + err.message, true);
+        }
+    }
+
+    function readFile(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsText(file, 'utf-8');
+        });
+    }
+
+    function detectFormat(text) {
+        return /item_name_begin/i.test(text) ? 'block' : 'simple';
+    }
+
+    function parseByFormat(text, format) {
+        if (format === 'block') {
+            return parseBlocks(text);
+        }
+        return parseSimple(text);
+    }
+
+    function parseSimple(text) {
+        const lines = text.split(/\r?\n/);
+        const map = new Map();
+        const order = [];
+        for (const line of lines) {
+            if (!line.trim()) continue;
+            const tabIndex = line.indexOf('\t');
+            if (tabIndex === -1) continue;
+            const id = line.slice(0, tabIndex).trim();
+            const value = line.slice(tabIndex + 1).trim();
+            if (!id) continue;
+            if (!map.has(id)) {
+                order.push(id);
+            }
+            map.set(id, { value });
+        }
+        return { map, order };
+    }
+
+    function parseBlocks(text) {
+        const normalized = text.replace(/\r\n/g, '\n');
+        const regex = /(item_name_begin[\s\S]*?item_name_end)/gi;
+        const map = new Map();
+        const order = [];
+        let match;
+        while ((match = regex.exec(normalized)) !== null) {
+            const block = match[0].trim();
+            if (!block) continue;
+            const id = extractId(block);
+            if (!id) continue;
+            if (!map.has(id)) {
+                order.push(id);
+            }
+            map.set(id, { value: block });
+        }
+        return { map, order };
+    }
+
+    function extractId(block) {
+        const tokens = block.split(/\t|\n/);
+        for (const token of tokens) {
+            const trimmed = token.trim();
+            if (!trimmed || trimmed === 'item_name_begin' || trimmed === 'item_name_end') {
+                continue;
+            }
+            const eq = trimmed.indexOf('=');
+            if (eq === -1) continue;
+            const key = trimmed.slice(0, eq).trim().toLowerCase();
+            if (key === 'id') {
+                let value = trimmed.slice(eq + 1).trim();
+                if (/^\[.*]$/.test(value)) {
+                    value = value.slice(1, -1);
+                }
+                return value;
+            }
+        }
+        return null;
+    }
+
+    function buildRows(oldData, newData) {
+        const seen = new Set();
+        const order = [];
+        const pushId = (id) => {
+            if (!seen.has(id)) {
+                seen.add(id);
+                order.push(id);
+            }
+        };
+
+        newData.order.forEach(pushId);
+        oldData.order.forEach(pushId);
+
+        state.rows = order.map(id => {
+            const oldEntry = oldData.map.get(id);
+            const newEntry = newData.map.get(id);
+            const oldValue = oldEntry ? oldEntry.value : '';
+            const newValue = newEntry ? newEntry.value : '';
+            return {
+                id,
+                oldValue,
+                newValue,
+                mergedValue: newValue || oldValue || '',
+                deleted: false
+            };
+        });
+    }
+
+    function renderTable() {
+        elements.diffBody.innerHTML = '';
+        state.rows.forEach((row, index) => {
+            const tr = document.createElement('tr');
+            tr.dataset.index = index;
+            tr.dataset.status = computeRowStatus(row);
+
+            const idCell = document.createElement('td');
+            idCell.className = 'id-cell';
+            idCell.textContent = row.id;
+            tr.appendChild(idCell);
+
+            tr.appendChild(makeValueCell(row.oldValue, 'wide-cell'));
+            tr.appendChild(makeValueCell(row.newValue, 'wide-cell'));
+            tr.appendChild(makeMergedCell(row, index));
+            tr.appendChild(makeActionsCell(row, index));
+
+            elements.diffBody.appendChild(tr);
+        });
+    }
+
+    function makeValueCell(value, className) {
+        const td = document.createElement('td');
+        td.className = className;
+        const badge = document.createElement('div');
+        badge.className = 'badge';
+        badge.textContent = value ? 'значение' : '—';
+        const pre = document.createElement('div');
+        pre.className = 'cell-content';
+        pre.textContent = value || '—';
+        td.appendChild(badge);
+        td.appendChild(pre);
+        return td;
+    }
+
+    function makeMergedCell(row, index) {
+        const td = document.createElement('td');
+        td.className = 'merged-cell';
+        const badge = document.createElement('div');
+        badge.className = 'badge';
+        badge.textContent = 'MERGED';
+        const div = document.createElement('div');
+        div.className = 'cell-content merged-field';
+        div.dataset.index = index.toString();
+        div.dataset.role = 'merged-field';
+        div.textContent = row.mergedValue || '';
+        div.contentEditable = 'false';
+        td.appendChild(badge);
+        td.appendChild(div);
+        return td;
+    }
+
+    function makeActionsCell(row, index) {
+        const td = document.createElement('td');
+        td.className = 'actions-cell';
+        td.appendChild(makeActionButton('← OLD', 'copy-old', index, !row.oldValue));
+        td.appendChild(makeActionButton('→ NEW', 'copy-new', index, !row.newValue));
+        td.appendChild(makeActionButton('✎', 'edit', index, false));
+        td.appendChild(makeActionButton(row.deleted ? 'Восстановить' : 'Удалить', 'delete', index, false));
+        td.appendChild(makeActionButton('Reset', 'reset', index, !row.newValue && !row.oldValue));
+        return td;
+    }
+
+    function makeActionButton(label, action, index, disabled) {
+        const btn = document.createElement('button');
+        btn.textContent = label;
+        btn.dataset.action = action;
+        btn.dataset.index = index.toString();
+        btn.disabled = !!disabled;
+        return btn;
+    }
+
+    function computeRowStatus(row) {
+        if (row.deleted) return 'deleted';
+        if (!row.newValue) return 'removed';
+        if (!row.oldValue) return 'added';
+        if (row.oldValue !== row.newValue) return 'changed';
+        if (row.mergedValue !== row.newValue) return 'changed';
+        return 'same';
+    }
+
+    function handleTableClick(event) {
+        const button = event.target.closest('button');
+        if (!button) return;
+        const action = button.dataset.action;
+        const index = Number(button.dataset.index);
+        const row = state.rows[index];
+        if (!row) return;
+
+        switch (action) {
+            case 'copy-old':
+                row.mergedValue = row.oldValue || '';
+                row.deleted = false;
+                break;
+            case 'copy-new':
+                row.mergedValue = row.newValue || '';
+                row.deleted = false;
+                break;
+            case 'edit':
+                enableEditing(index);
+                return;
+            case 'delete':
+                row.deleted = !row.deleted;
+                break;
+            case 'reset':
+                row.mergedValue = row.newValue || row.oldValue || '';
+                row.deleted = false;
+                break;
+        }
+        refreshRow(index);
+    }
+
+    function enableEditing(index) {
+        const field = elements.diffBody.querySelector(`div[data-role="merged-field"][data-index="${index}"]`);
+        if (!field) return;
+        field.contentEditable = 'true';
+        field.classList.add('editing');
+        placeCaretAtEnd(field);
+        field.focus();
+    }
+
+    function placeCaretAtEnd(element) {
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        range.collapse(false);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+    }
+
+    function handleMergedInput(event) {
+        const field = event.target.closest('[data-role="merged-field"]');
+        if (!field) return;
+        const index = Number(field.dataset.index);
+        const row = state.rows[index];
+        if (!row) return;
+        row.mergedValue = field.innerText;
+        row.deleted = false;
+        refreshRow(index, false);
+    }
+
+    function handleMergedBlur(event) {
+        const field = event.target.closest('[data-role="merged-field"]');
+        if (!field) return;
+        field.contentEditable = 'false';
+        field.classList.remove('editing');
+        const index = Number(field.dataset.index);
+        refreshRow(index);
+    }
+
+    function refreshRow(index, resetButtons = true) {
+        const row = state.rows[index];
+        if (!row) return;
+        const tr = elements.diffBody.querySelector(`tr[data-index="${index}"]`);
+        if (!tr) return;
+        tr.dataset.status = computeRowStatus(row);
+
+        const mergedField = tr.querySelector('[data-role="merged-field"]');
+        if (mergedField && mergedField.textContent !== row.mergedValue) {
+            mergedField.textContent = row.mergedValue || '';
+        }
+
+        if (resetButtons) {
+            const deleteBtn = tr.querySelector('button[data-action="delete"]');
+            if (deleteBtn) {
+                deleteBtn.textContent = row.deleted ? 'Восстановить' : 'Удалить';
+            }
+            const copyOld = tr.querySelector('button[data-action="copy-old"]');
+            if (copyOld) copyOld.disabled = !row.oldValue;
+            const copyNew = tr.querySelector('button[data-action="copy-new"]');
+            if (copyNew) copyNew.disabled = !row.newValue;
+            const resetBtn = tr.querySelector('button[data-action="reset"]');
+            if (resetBtn) resetBtn.disabled = !row.newValue && !row.oldValue;
+        }
+    }
+
+    function exportMerged() {
+        if (!state.rows.length) {
+            showStatus('Нет данных для экспорта', true);
+            return;
+        }
+        const lines = [];
+        for (const row of state.rows) {
+            if (row.deleted) continue;
+            const merged = row.mergedValue || '';
+            if (state.format === 'simple') {
+                lines.push(`${row.id}\t${merged}`);
+            } else {
+                let blockText = merged.trim();
+                if (!blockText.startsWith('item_name_begin')) {
+                    blockText = `item_name_begin\n${blockText}`;
+                }
+                if (!/item_name_end\s*$/.test(blockText)) {
+                    blockText = `${blockText}\nitem_name_end`;
+                }
+                lines.push(blockText);
+            }
+        }
+
+        const output = state.format === 'simple'
+            ? lines.join('\n')
+            : lines.join('\n\n');
+
+        const blob = new Blob([output], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = state.format === 'simple' ? 'merged.txt' : 'merged_item_name.txt';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showStatus('Экспорт завершен');
+    }
+</script>
+</body>
+</html>
+
